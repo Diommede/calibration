@@ -9,8 +9,7 @@ from geometry_msgs.msg import PoseStamped
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import String, Float32MultiArray
 from rospy import init_node, is_shutdown
-from generateur_de_mesure import generateur
-from parametres import Definitions
+from parametres import Mesure
 from tf import transformations as tf
 
 
@@ -20,24 +19,10 @@ from tf import transformations as tf
 
 class main:
 
-####################################
-##############CALCULS###############
-####################################	
-	def __init__(self, Filename):
-
-#Lire les données du bag
-
-		Donnees = Definitions()
-
-		for i in range(1,7):
-			print(np.array(Donnees.m).shape)
-			np.append(Donnees.m, np.concatenate((np.matmul(np.transpose(Donnees.Nw),Donnees.RwbDeg[i])*Donnees.l[i],np.matmul(Donnees.Nw,(Donnees.RwbDeg[i]-Donnees.I)),[-1])))
-			np.append(Donnees.b, np.dot(Donnees.Nw,Donnees.twb[i]))
-	
-		#Donnees.x = np.linalg.lstsq(Donnees.m, -Donnees.b)
+	def __init__(self):
 
 ######################################
-################ROS###################
+###############LECTURE################
 ######################################
 
 #Initiation du noeud , subscriber et publisher
@@ -45,80 +30,73 @@ class main:
 		rospy.Subscriber('sub', String, self.callback)
 		self.pub = rospy.Publisher('chatter', String, queue_size=10)
 
-#Crée un bag en mode écriture
-   		bag = rosbag.Bag('test.bag', 'w')
-
-#Ecriture du bag pour test
-
-		mot =  PoseStamped()
-		mot2 = PoseStamped()
-
-		mot.pose.position.x = 54.2
-		mot.pose.position.y = 50.1
-		mot.pose.position.z = 59.0
-
-		mot.pose.orientation.x = 44.2
-		mot.pose.orientation.y = 40.1
-		mot.pose.orientation.z = 49.0
-		mot.pose.orientation.w = 48.7
-
-
-		mot2.pose.position.x = 34.2
-		mot2.pose.position.y = 30.1
-		mot2.pose.position.z = 39.0
-
-		mot2.pose.orientation.x = 24.2
-		mot2.pose.orientation.y = 20.1
-		mot2.pose.orientation.z = 29.0
-		mot2.pose.orientation.w = 28.7
-
-                bag.write('/dist', mot2)
-		bag.write('/pose', mot)
-
-
-
-
+#Lecture de la normale depuis le fichier texte
 		with open("/home/denis/catkin_ws/src/autocalibration/src/data.txt", "r") as f:
     			for line in f.readlines():
-        			if 'Nw' in line:					
-					a,b = line.split(':')
-					Donnees.Nw = b
-					print (b)
-
-		bag.close()
-   		bag = rosbag.Bag('test.bag', 'r')
-		i=0
+        			if 'Nw' in line:
+					line= line.strip('\n')					
+					y,z = line.split(':')
+					z = z.split(',')
+    			z1 = [float(i) for i in z]
+			Nw_lect = np.array(z1)		
+					
+#Lecture de la longueur mesurée et de la position par rapport au monde
+		tab_lidars = []
+   		bag = rosbag.Bag('/home/denis/BAGS/mesure2.bag', 'r')
+		for (topic, msg, t) in bag.read_messages(topics = 'mappys'):
+			tab_lidars.append([msg,t])
+			
+			print tab_lidars
 		
-		
-		twb_quat = [PoseStamped()]*2
-		for (topic, msg, t) in bag.read_messages():
 
-			Donnees.twb[i].pose.position.x = msg.pose.position.x
-			Donnees.twb[i].pose.position.y = msg.pose.position.y
-			Donnees.twb[i].pose.position.z = msg.pose.position.z
+		l_lect = msg.data[3]
+		proxi = []
+##tag detection periode = 50ms
+#		for (topic, msg, t) in bag.read_messages(topics = 'tf'):
+#			position_wb_lect = msg.transforms[0].transform
 
-			twb_quat[i].pose.orientation.x = msg.pose.orientation.x
-			twb_quat[i].pose.orientation.y = msg.pose.orientation.y
-			twb_quat[i].pose.orientation.z = msg.pose.orientation.z
-			twb_quat[i].pose.orientation.w = msg.pose.orientation.w
-			i=i+1
+#	#Moyennage des valeurs de lidars autour des temps de position
+#			while i < len(tab_lidars)
+#				if  = tab_lidars[i][2]
+#					proxi[i]
+#			print e
 
-			Donnees.Rwb[i] = tf.quaternion_matrix(twb_quat[i].pose.orientation.x, twb_quat[i].pose.orientation.y, twb_quat[i].pose.orientation.z, twb_quat[i].pose.orientation.w)
-		 	print (Donnees.twb_quat)
-		 	print (Donnees.Rwb)
-
- 
 		bag.close()
 		rospy.spin()
-#Ferme le bag
 
 ####################################
-##############DEBUG#################
-####################################
+##############CALCULS###############
+####################################	
+#///////////////////////////////revoir l'initialisation de m
+		m = np.array([np.array([0.,0.,0.,0.,0.,0.,0.])*8])
+		b = np.array([4.]*8)
+		x = 0 
 
-		#print Donnees.l
-		#print ('\n')
-		#print Donnees.x
+		I = np.array([[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]) 
+
+		#Remplissage structure de données
+		print l_lect
+		Donnees = Mesure (position_wb_lect, Nw_lect, l_lect)
+
+		tbc = Donnees.tbc
+		rbc = Donnees.Rbcrot
+		
+		twb = Donnees.twb
+		rwb = Donnees.Rwbrot
+
+		Nw = Donnees.Nw
+		l = Donnees.l
+				
+		#m = np.concatenate((np.matmul(np.transpose(Nw), rwb) * l, np.matmul(Nw, (rwb-I)),[-1]))
+		m = np.array([np.concatenate((np.matmul(np.transpose(Nw), rwb) * l, np.matmul(Nw, (rwb-I)),[-1]))]*8)
+		np.append(b, np.dot(Nw,twb))
+	
+#		print m
+#		print b
+
+
+		x = np.linalg.lstsq(m, -b)
+#		print x
 
 
 ####################################
@@ -136,6 +114,6 @@ class main:
 	
 if __name__ == "__main__":
     try:
-        Capteur = main(Filename="test.bag")
+        Capteur = main()
     except rospy.ROSInterruptException:
         pass
