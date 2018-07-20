@@ -59,7 +59,7 @@ class Mesure :
 #POSE LUE DE BAG/FICHIER
 		# Vecteur de rotation entre le monde et la base du drone en quaternion		
 		self.position_wb = _position_wb
-
+			
 #NP_ARRAYS
 
 		# Vecteur de rotation entre le monde et la base du drone en degrés	
