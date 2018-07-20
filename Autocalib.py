@@ -20,7 +20,8 @@ from tf import transformations as tf
 class main:
 
 	def __init__(self):
-
+		
+		lidar_inter = 5
 ######################################
 ###############LECTURE################
 ######################################
@@ -42,7 +43,7 @@ class main:
 
 #Lecture de la longueur mesurée par rapport au monde
 		tab_lidars = []
-   		bag = rosbag.Bag('/home/denis/BAGS/mesure2.bag', 'r')
+   		bag = rosbag.Bag('/home/denis/BAGS/mesure_continue.bag', 'r')
 		for (topic, msg, t) in bag.read_messages(topics = 'mappys'):
 			tab_lidars.append([msg.data, t.to_sec()])
 		tab_lidars = np.array(tab_lidars)
@@ -107,7 +108,7 @@ class main:
 		I = np.array([[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]) 
  
 		for i in range(len(moyennage)):
-			l_lect = moyennage[i][5]
+			l_lect = moyennage[i][lidar_inter]
 
 			position_wb_lect = proxi[0][0]
 
@@ -124,7 +125,7 @@ class main:
 			l = Donnees.l
 		
 			m.append(np.concatenate((np.matmul(np.transpose(Nw), rwb) * l, np.matmul(Nw, (rwb-I)),[-1])))
-			np.append(b, np.dot(Nw,twb))
+			b.append(np.dot(Nw,twb))
 
 		m = np.array(m)	
 		b = np.array(b)	
