@@ -52,27 +52,32 @@ import rospy
 ##################################################
 
 class Mesure :
-#//////////////////////////isinstance(objet, classe) pour détecter le type
-	def __init__(self, _position_wb, _Nw, _l):
-
+#//////////////////////////instance(objet, classe) pour détecter le type
+	def __init__(self, _position_wb, _l, rot_matrix):
 
 #POSE LUE DE BAG/FICHIER
 		# Vecteur de rotation entre le monde et la base du drone en quaternion		
 		self.position_wb = _position_wb
 			
 #NP_ARRAYS
-
 		# Vecteur de rotation entre le monde et la base du drone en degrés	
+
 		self.interm = np.array(tf.quaternion_matrix([self.position_wb.rotation.x, self.position_wb.rotation.y, self.position_wb.rotation.z, self.position_wb.rotation.w]))
-		self.Rwbrot = np.transpose(np.array([[self.interm[0][0],self.interm[0][1],self.interm[0][2]],[self.interm[1][0],self.interm[1][1],self.interm[1][2]],[self.interm[2][0],self.interm[2][1],self.interm[2][2]]]))
+
+		self.interm = np.array([[self.interm[0][0], self.interm[0][1], self.interm[0][2]], [self.interm[1][0], self.interm[1][1], self.interm[1][2]],[self.interm[2][0], self.interm[2][1], self.interm[2][2]]])
+		self.Rwbrot = np.transpose(self.interm)
+
+		# Vecteur normal au plan du mur
+		self.Nw = np.dot(rot_matrix,[0,0,1])
+
+
 		# Vecteur de translation entre le monde et la base du drone
 		self.twb = -np.dot(self.Rwbrot, np.array([self.position_wb.translation.x, self.position_wb.translation.y, self.position_wb.translation.z]))
 		#  Translation du centre du drone vers le capteur
 		self.tbc = np.array([1.,0.,0.])
 		#  Rotation du centre du drone vers le capteur en quaternion	
 		self.Rbcrot = np.array([[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]) 
-		# Vecteur normal au plan
-		self.Nw = _Nw
+
 		# Distance mesurée du capteur au plan
 		self.l = _l
 
