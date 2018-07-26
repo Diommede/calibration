@@ -63,8 +63,7 @@ class Mesure :
 		# Vecteur de rotation entre le monde et la base du drone en degrés	
 
 		self.interm = np.array(tf.quaternion_matrix([self.position_wb.rotation.x, self.position_wb.rotation.y, self.position_wb.rotation.z, self.position_wb.rotation.w]))
-
-		self.interm = np.array([[self.interm[0][0], self.interm[0][1], self.interm[0][2]], [self.interm[1][0], self.interm[1][1], self.interm[1][2]],[self.interm[2][0], self.interm[2][1], self.interm[2][2]]])
+		self.interm = self.interm[:3,:3]
 		self.Rwbrot = np.transpose(self.interm)
 
 		# Vecteur normal au plan du mur
@@ -77,9 +76,5 @@ class Mesure :
 		self.tbc = np.array([1.,0.,0.])
 		#  Rotation du centre du drone vers le capteur en quaternion	
 		self.Rbcrot = np.array([[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]) 
-
 		# Distance mesurée du capteur au plan
 		self.l = _l
-
-
-
