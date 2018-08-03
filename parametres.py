@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from geometry_msgs.msg import PoseStamped, PoseArray, Pose, Quaternion, Point
+import geometry_msgs
 from rospy import init_node, is_shutdown
 from std_msgs.msg import String, Float32MultiArray
 from rospy.numpy_msg import numpy_msg
@@ -61,8 +61,7 @@ class Mesure :
 			
 #NP_ARRAYS
 		# Vecteur de rotation entre le monde et la base du drone en degrés	
-
-		self.interm = np.array(tf.quaternion_matrix([self.position_wb.rotation.x, self.position_wb.rotation.y, self.position_wb.rotation.z, self.position_wb.rotation.w]))
+		self.interm = np.array(tf.quaternion_matrix([self.position_wb.orientation.x, self.position_wb.orientation.y, self.position_wb.orientation.z, self.position_wb.orientation.w]))
 		self.interm = self.interm[:3,:3]
 		self.Rwbrot = np.transpose(self.interm)
 
@@ -71,7 +70,7 @@ class Mesure :
 
 
 		# Vecteur de translation entre le monde et la base du drone
-		self.twb = -np.dot(self.Rwbrot, np.array([self.position_wb.translation.x, self.position_wb.translation.y, self.position_wb.translation.z]))
+		self.twb = -np.dot(self.Rwbrot, np.array([self.position_wb.position.x, self.position_wb.position.y, self.position_wb.position.z]))
 		#  Translation du centre du drone vers le capteur
 		self.tbc = np.array([1.,0.,0.])
 		#  Rotation du centre du drone vers le capteur en quaternion	

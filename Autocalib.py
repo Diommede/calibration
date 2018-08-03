@@ -5,13 +5,14 @@ import rosbag
 import rospy
 import numpy as np
 import math as math	
-from geometry_msgs.msg import PoseStamped
+import geometry_msgs
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import String, Float32MultiArray
 from rospy import init_node, is_shutdown
 from parametres import Mesure
 from tf import transformations as tf
 from IPython import embed
+import matplotlib.pyplot as plt
 
 class main:
 
@@ -45,6 +46,7 @@ class main:
 		#Moyennage des valeurs de lidars autour des temps de position
 		moyennage = self.moyennage_mesures_lidars(proxi, tab_lidars)		
 		
+		#moyennage, proxi = self.generation_mesures()
 		#Calcul de la distance à t = 0 du capteur pour vérification de X
 		#d0 = self.calcul_d0(translation_mires, proxi)
 
@@ -64,25 +66,28 @@ class main:
 
 	
 	def entree_chemins(self):
-		chemin_deux_mires = "/home/denis/BAGS/Première série de mesures/" + raw_input("Entrez le nom du bag comportant les deux mires au format \"NOM_DU_BAG.bag\" : \n")
-		chemin_mesures = "/home/denis/BAGS/Première série de mesures/" + raw_input("Entrez le nom du bag comportant les mesures lidar et camera au format \"NOM_DU_BAG.bag\" : \n")
+		chemin_deux_mires = "/home/denis/BAGS/Sixieme_serie_de_mesures/" + raw_input("Entrez le nom du bag comportant les deux mires au format \"NOM_DU_BAG.bag\" : \n")
+		chemin_mesures = "/home/denis/BAGS/Sixieme_serie_de_mesures/" + raw_input("Entrez le nom du bag comportant les mesures lidar et camera au format \"NOM_DU_BAG.bag\" : \n")
 
 #############################################################################################################################################
 #TEST
-		chemin_deux_mires = "/home/denis/BAGS/Première série de mesures/2mires.bag"
-		chemin_mesures = "/home/denis/BAGS/Première série de mesures/mesure_continue.bag"
-#############################################################################################################################################
 
+		chemin_deux_mires = "/home/denis/BAGS/Premiere_serie_de_mesures/2mires.bag"
+		chemin_mesures = "/home/denis/BAGS/Premiere_serie_de_mesures/mesure1.bag"
+	#	chemin_deux_mires = "/home/denis/BAGS/Sixieme_serie_de_mesures/2mires_mire_simple.bag"
+	#	chemin_mesures = "/home/denis/BAGS/Sixieme_serie_de_mesures/mesure_continue_mire_simple.bag"
+#############################################################################################################################################
 
 		#Bag de lecture de mesures
    		bag_mesures = rosbag.Bag(chemin_mesures, 'r')	
 		#Lecture de la normale depuis le fichier 2mires.bag
    		bag_mires = rosbag.Bag(chemin_deux_mires, 'r')
-
+		 
 		return bag_mires, bag_mesures
 
 	#Lecture du mag incluant la détection des 2 mires et établissement des transformations entre les deux mires
 	def lecture_des_normales(self, _bag_mires):
+
 		self.rotation_mires = []							# Rotation observée entre la mire horizontale et la verticale
 		self.translation_mires = []							# Translation observée entre la mire horizontale et la verticale
 		self.mires = []									# Transformation observée entre la mire horizontale et la verticale
@@ -100,6 +105,7 @@ class main:
 
 		#Mise en mémoire des détection des transformations cible caméra
 		for (topic, msg, t) in _bag_mires.read_messages(topics = 'tag_detections'):
+
 			self.mires.append([msg.detections[0].pose.pose.pose, msg.detections[1].pose.pose.pose])
 
 		a=0
@@ -122,28 +128,30 @@ class main:
 		
 		#Addition des deux translations 
 		self.translation_mires = np.add(t_17_c, -t_21_c)
-#		print t_17_c
-#		print t_c_21
-		print self.translation_mires
 
 		return self.translation_mires, self.rotation_mires
+
 
 
 	#Calcul de la distance à t = 0 du capteur pour vérification de X
 	def calcul_d0(self, _translation_mires, _proxi):
 
-		embed()
-		self.R_21_c = np.array(tf.quaternion_matrix([_proxi[0][0].rotation.x, _proxi[0][0].rotation.y, _proxi.rotation[0][0].z, _proxi[0][0].rotation.w]))
+
+		self.R_21_c = np.array(tf.quaternion_matrix([_proxi[0][0].orientation.x, _proxi[0][0].orientation.y, _proxi[0][0].orientation.z, _proxi[0][0].orientation.w]))
 		self.R_21_c = self.R_21_c[:3,:3]
 		self.R_c_21 = np.transpose(self.R_21_c)
 		
+		distance_capteur_mur = _translation_mires[2] - np.dot(self.R_c_21, np.array([_proxi[0][0].position.x,_proxi[0][0].position.y, _proxi[0][0].position.z]))[2]
 
-		distance_capteur_mur = _translation_mires[2] - np.dot(self.R_c_21, np.array([_proxi.translation.x,_proxi.translation.y, _proxi.translation.z]))
-		print np.dot(self.R_c_21, np.array([_proxi.translation.x,_proxi.translation.y, _proxi.translation.z]))
 
 		#Calcul de la distance initiale du capteur au mur
 		self.d0 = math.sqrt(np.square(t_c_17[0]) + np.square(t_c_17[1]) + np.square(t_c_17[2]))
+		
 		return d0
+
+
+
+
 
 
 	#Lecture de la longueur mesurée par rapport au monde
@@ -161,8 +169,38 @@ class main:
 		for (topic, msg, t) in _bag.read_messages(topics = 'tf'):
 			proxi.append([msg.transforms[0].transform, msg.transforms[0].header.stamp.to_sec()])
 		proxi = np.array(proxi)
-
 		return proxi
+
+	# Fonction de génération de paramètres entrés "en dur" pour test
+	# Remplace les fonctions "lecture_camera", "lecture_longueurs" et "moyennage_mesures_lidars"
+	def generation_mesures(self):
+
+		proxi = []
+		pose = []
+		tab_lidars = []
+
+		tab_lidars = [[[612],1532528096.470912000],[[909],1532528099.819173999],[[655],1532528107.665666999],[[984],1532528110.964180000],[[684],1532528117.11463000],[[649],1532528126.2574219999],[[353],1532528131.954766999]]
+
+        	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(-0.076414,-0.0138025,0.896131),geometry_msgs.msg.Quaternion(0.983468,-0.020823,-0.179758,-0.006613)))
+	      	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(-0.154615,0.268192,0.849482),geometry_msgs.msg.Quaternion(0.958493,-0.004453,-0.095945,0.268450)))
+	   	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(0.126650,-0.1777319,0.885669),geometry_msgs.msg.Quaternion(0.949369,0.049062,-0.309852,-0.016838)))
+	   	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(0.048553,-0.199161,0.846596),geometry_msgs.msg.Quaternion(0.883674,0.419044,0.200529,0.057537)))
+	   	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(0.011198,-0.109262,1.123136),geometry_msgs.msg.Quaternion(0.975629,0.043485,-0.214231,-0.019044)))
+	   	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(0.121662,-0.195784,0.828561),geometry_msgs.msg.Quaternion(0.989010,0.022398,0.144410,-0.022422)))
+	   	pose.append(geometry_msgs.msg.Pose(geometry_msgs.msg.Point(-0.131101,0.102438,0.686107),geometry_msgs.msg.Quaternion(0.987197,-0.022544,-0.130544,0.088841)))
+
+		proxi = [[pose[0],1532528096.470912000],[pose[1],1532528099.819173999],[pose[2],1532528107.665666999],[pose[3],1532528110.964180000],[pose[4],1532528117.11463000],[pose[5],1532528126.2574219999],[pose[6],1532528131.954766999]]	
+		
+		self.moyennage = []
+		for i in range (0,7):
+			self.moyennage.append([])
+			for j in range (0,7):
+				if j == 4 :
+					self.moyennage[i].append(tab_lidars[i][0][0])
+				else : self.moyennage[i].append(0)
+
+		return self.moyennage, proxi
+
 
 	#Moyennage des valeurs de lidars autour des temps de position
 	def moyennage_mesures_lidars(self, _proxi, _tab_lidars):
@@ -189,23 +227,35 @@ class main:
 												#    de	   :	 |_|_|_|_|_|_|
 												#  Mesures :	 |_|_|_|_|_|_|
 												#  Camera  :_	 |_|_|_|_|_|_|
-
+		
 
 		for j in range(len(_proxi)):   							# Pour chaque mesure de camera... 
 			self.Liste_moyennage.append([])		
-			self.moyennage.append([])										
+			self.moyennage.append([])
 			for i in range(len(_tab_lidars)):					# Pour chaque mesure de lidar...
-				if (abs(_tab_lidars[i][1] - _proxi[j][1]) < 0.025):		# Si le temps séparant les deux mesures est inferieur à 
+#				print _tab_lidars[i][0]
+				print np.shape(_proxi)
+				if (abs(_tab_lidars[i][1] - _proxi[j][1]) < 0.025): #and _tab_lidars[i][0] != 0):		
+#					embed()
+												# Si le temps séparant les deux mesures est inferieur à 
 												# 0.025s (demi période de la caméra) 
 					self.Liste_moyennage[j].append(_tab_lidars[i][0])	# On liste toutes les mesures de lidar remplissant ce critère
-			for k in range(len(_tab_lidars[1][0])):
-				var = []
+
+#			if j == 3 or j== 5:  
+#				self.Liste_moyennage[j] = []
+#			if self.Liste_moyennage[j] == []:
+#				np.delete(_proxi,j)
+
+#			print self.Liste_moyennage
+  			print np.shape(self.Liste_moyennage)
+			for k in range(len(self.Liste_moyennage[j])):
+				var = []	
+#				embed()
 				for l in range (len(self.Liste_moyennage[j])):
-					var.append(self.Liste_moyennage[j][l][k])			
+					var.append(self.Liste_moyennage[j][l][k])
 				self.moyennage[j].append(np.mean(var))				# On fait leur moyenne de la liste ci-dessus sur les mesures 
 												# de caméra
 		self.moyennage = np.array(self.moyennage)			
-		
 		return self.moyennage	
 	
 
@@ -221,6 +271,7 @@ class main:
 		for i in range(len(_moyennage)):
 
 			l_lect = _moyennage[i][_lidar_compt]
+
 			position_wb_lect = _proxi[i][0]
 
 			#Remplissage structure de données
@@ -233,7 +284,7 @@ class main:
 			rwb = Donnees.Rwbrot
 
 			Nw = Donnees.Nw
-			#print math.sqrt(Nw[0]*Nw[0] + Nw[1]*Nw[1] + Nw[2]*Nw[2])
+
 			l = Donnees.l
 			
 			m.append(np.concatenate((np.matmul(np.transpose(Nw), rwb) * l/1000.0, np.matmul(np.transpose(Nw), (rwb-I)),[-1])))
@@ -244,7 +295,10 @@ class main:
 		x = np.linalg.lstsq(m, -b)
 		x1,x2,x3,x4 = np.linalg.lstsq(m, -b)
 
-		#embed()
+		err = np.dot(m,x1) - b
+		
+		#print err
+
 		return x
 
 
